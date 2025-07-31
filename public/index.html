@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudDrive Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            secondary: '#7c3aed',
+            dark: '#1e293b',
+            light: '#f8fafc'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .file-item {
+      animation: fadeIn 0.3s ease-out forwards;
+      opacity: 0;
+    }
+    
+    .file-item:nth-child(1) { animation-delay: 0.1s; }
+    .file-item:nth-child(2) { animation-delay: 0.2s; }
+    .file-item:nth-child(3) { animation-delay: 0.3s; }
+    .file-item:nth-child(4) { animation-delay: 0.4s; }
+    .file-item:nth-child(5) { animation-delay: 0.5s; }
+    .file-item:nth-child(6) { animation-delay: 0.6s; }
+    .file-item:nth-child(7) { animation-delay: 0.7s; }
+    .file-item:nth-child(8) { animation-delay: 0.8s; }
+    .file-item:nth-child(9) { animation-delay: 0.9s; }
+    .file-item:nth-child(10) { animation-delay: 1s; }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #e2e8f0;
+      border-top: 5px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .file-icon {
+      transition: transform 0.2s ease;
+    }
+    
+    .file-item:hover .file-icon {
+      transform: scale(1.1);
+    }
+    
+    /* New download button style */
+    .download-btn {
+      transition: all 0.2s ease;
+    }
+    
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 text-center">
+      <div class="flex justify-center items-center mb-4">
+        <i class="fas fa-cloud text-4xl text-primary mr-3"></i>
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          CloudDrive Explorer
+        </h1>
+      </div>
+      <p class="text-gray-600 max-w-2xl mx-auto">
+        Access and manage your OneDrive files from anywhere. Securely stored and always available.
+      </p>
+    </header>
+    
+    <!-- Stats Card -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="flex items-center">
+        <div class="bg-blue-100 p-3 rounded-full mr-4">
+          <i class="fas fa-file text-blue-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">Total Files</p>
+          <h3 class="text-2xl font-semibold" id="total-files">Loading...</h3>
+        </div>
+      </div>
+      <div class="flex items-center">
+        <div class="bg-purple-100 p-3 rounded-full mr-4">
+          <i class="fas fa-folder text-purple-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">Folders</p>
+          <h3 class="text-2xl font-semibold" id="total-folders">Loading...</h3>
+        </div>
+      </div>
+      <div class="flex items-center">
+        <div class="bg-green-100 p-3 rounded-full mr-4">
+          <i class="fas fa-database text-green-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-gray-500 text-sm">Storage Used</p>
+          <h3 class="text-2xl font-semibold" id="storage-used">Loading...</h3>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Search and Filter -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div class="relative w-full md:w-96">
+        <input 
+          type="text" 
+          id="search" 
+          placeholder="Search files..." 
+          class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        >
+        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+      </div>
+      <div class="flex gap-2 w-full md:w-auto">
+        <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+          <i class="fas fa-sort-amount-down mr-2"></i> Sort
+        </button>
+        <button class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+          <i class="fas fa-filter mr-2"></i> Filter
+        </button>
+      </div>
+    </div>
+    
+    <!-- Files Container -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+      <!-- Files Header -->
+      <div class="bg-gray-50 px-6 py-3 border-b border-gray-200 flex items-center">
+        <div class="w-10"></div>
+        <div class="flex-1 font-medium text-gray-700">Name</div>
+        <div class="w-32 font-medium text-gray-700 hidden md:block">Last Modified</div>
+        <div class="w-24 font-medium text-gray-700 hidden md:block">Size</div>
+        <div class="w-32 font-medium text-gray-700">Actions</div>
+      </div>
+      
+      <!-- Loading State -->
+      <div id="loading" class="flex justify-center items-center py-16">
+        <div class="loading-spinner"></div>
+      </div>
+      
+      <!-- Files List -->
+      <div id="files" class="divide-y divide-gray-200"></div>
+      
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden py-12 text-center">
+        <i class="fas fa-folder-open text-4xl text-gray-300 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-700">No files found</h3>
+        <p class="text-gray-500 mt-1">Upload files to get started</p>
+        <button class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition">
+          <i class="fas fa-upload mr-2"></i> Upload Files
+        </button>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-gray-500 text-sm">
+      <p>© 2023 CloudDrive Explorer. All rights reserved.</p>
+      <div class="flex justify-center space-x-4 mt-2">
+        <a href="#" class="hover:text-primary transition"><i class="fas fa-shield-alt"></i> Privacy</a>
+        <a href="#" class="hover:text-primary transition"><i class="fas fa-file-alt"></i> Terms</a>
+        <a href="#" class="hover:text-primary transition"><i class="fas fa-question-circle"></i> Help</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const filesContainer = document.getElementById('files');
+      const loadingElement = document.getElementById('loading');
+      const emptyStateElement = document.getElementById('empty-state');
+      
+      // Format date
+      function formatDate(dateString) {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+      }
+      
+      // Format file size
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+      }
+      
+      // Get file icon based on extension
+      function getFileIcon(fileName) {
+        const extension = fileName.split('.').pop().toLowerCase();
+        const iconMap = {
+          pdf: 'file-pdf',
+          doc: 'file-word',
+          docx: 'file-word',
+          xls: 'file-excel',
+          xlsx: 'file-excel',
+          ppt: 'file-powerpoint',
+          pptx: 'file-powerpoint',
+          txt: 'file-alt',
+          zip: 'file-archive',
+          rar: 'file-archive',
+          mp3: 'file-audio',
+          wav: 'file-audio',
+          mp4: 'file-video',
+          mov: 'file-video',
+          jpg: 'file-image',
+          jpeg: 'file-image',
+          png: 'file-image',
+          gif: 'file-image',
+          csv: 'file-csv',
+          exe: 'file-code',
+          js: 'file-code',
+          html: 'file-code',
+          css: 'file-code',
+          json: 'file-code'
+        };
+        
+        return iconMap[extension] || 'file';
+      }
+
+      // Handle file download
+      function handleDownload(downloadUrl, fileName) {
+        // Create a temporary anchor element
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', fileName);
+        link.setAttribute('target', '_blank');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      // Fetch files from API
+      fetch('/api/fetchFiles')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          const files = data.files || [];
+          loadingElement.classList.add('hidden');
+          
+          if (files.length === 0) {
+            emptyStateElement.classList.remove('hidden');
+            return;
+          }
+          
+          // Update stats
+          document.getElementById('total-files').textContent = files.length;
+          document.getElementById('total-folders').textContent = files.filter(f => f.folder).length;
+          
+          const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+          document.getElementById('storage-used').textContent = formatFileSize(totalSize);
+          
+          // Render files
+          files.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = `file-item px-6 py-4 hover:bg-gray-50 transition flex items-center`;
+            fileItem.style.animationDelay = `${index * 0.1}s`;
+            
+            const iconName = file.folder ? 'folder' : getFileIcon(file.name);
+            const iconColor = file.folder ? 'text-yellow-400' : 'text-primary';
+            const downloadUrl = file['@microsoft.graph.downloadUrl'];
+            
+            fileItem.innerHTML = `
+              <div class="w-10">
+                <i class="fas fa-${iconName} ${iconColor} text-xl file-icon"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-900 truncate" title="${file.name}">
+                  ${file.name}
+                </p>
+                <p class="text-gray-500 text-sm truncate md:hidden">
+                  ${formatDate(file.lastModifiedDateTime)} • ${formatFileSize(file.size || 0)}
+                </p>
+              </div>
+              <div class="w-32 text-gray-500 hidden md:block">
+                ${formatDate(file.lastModifiedDateTime)}
+              </div>
+              <div class="w-24 text-gray-500 hidden md:block">
+                ${formatFileSize(file.size || 0)}
+              </div>
+              <div class="w-32 flex justify-end">
+                ${downloadUrl ? `
+                  <button onclick="handleDownload('${downloadUrl}', '${file.name.replace(/'/g, "\\'")}')" 
+                    class="download-btn px-3 py-1 bg-primary text-white rounded-lg hover:bg-blue-600 transition flex items-center">
+                    <i class="fas fa-download mr-2"></i>
+                    <span class="hidden sm:inline">Download</span>
+                  </button>
+                ` : `
+                  <span class="text-gray-400 text-sm">No download</span>
+                `}
+              </div>
+            `;
+            
+            filesContainer.appendChild(fileItem);
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching files:', error);
+          loadingElement.classList.add('hidden');
+          emptyStateElement.classList.remove('hidden');
+          emptyStateElement.innerHTML = `
+            <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-700">Error loading files</h3>
+            <p class="text-gray-500 mt-1">${error.message || 'Please try again later'}</p>
+            <button onclick="window.location.reload()" class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition">
+              <i class="fas fa-sync-alt mr-2"></i> Refresh
+            </button>
+          `;
+        });
+        
+      // Make handleDownload available globally
+      window.handleDownload = handleDownload;
+        
+      // Search functionality
+      const searchInput = document.getElementById('search');
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const fileItems = document.querySelectorAll('.file-item');
+        
+        fileItems.forEach(item => {
+          const fileName = item.querySelector('p').textContent.toLowerCase();
+          if (fileName.includes(searchTerm)) {
+            item.classList.remove('hidden');
+          } else {
+            item.classList.add('hidden');
+          }
+        });
+        
+        // Show empty state if no files match
+        const visibleFiles = document.querySelectorAll('.file-item:not(.hidden)');
+        if (visibleFiles.length === 0 && searchTerm.length > 0) {
+          emptyStateElement.classList.remove('hidden');
+          emptyStateElement.innerHTML = `
+            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-700">No matching files</h3>
+            <p class="text-gray-500 mt-1">Try a different search term</p>
+          `;
+        } else if (visibleFiles.length === 0) {
+          emptyStateElement.classList.remove('hidden');
+          emptyStateElement.innerHTML = `
+            <i class="fas fa-folder-open text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-700">No files found</h3>
+            <p class="text-gray-500 mt-1">Upload files to get started</p>
+            <button class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition">
+              <i class="fas fa-upload mr-2"></i> Upload Files
+            </button>
+          `;
+        } else {
+          emptyStateElement.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -19,18 +19,36 @@ interface CachedFiles {
 
 // Initialize Firebase
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
+  apiKey: process.env.FIREBASE_API_KEY || "mock-key-for-dev",
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
   projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
   appId: process.env.FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase only if config is valid
+let db;
+try {
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
+    throw new Error("Missing required Firebase config");
+  }
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} catch (firebaseError) {
+  console.error("Firebase initialization failed:", firebaseError);
+  // db will remain undefined
+}
 
 export default async function handler(req, res) {
+  // Early return if Firebase failed to initialize
+  if (!db) {
+    return res.status(500).json({
+      error: 'Server configuration error',
+      details: 'Firebase not initialized'
+    });
+  }
+
   try {
     // 1. Check Firestore cache first
     const cacheRef = doc(db, 'cache', 'files');
@@ -47,6 +65,10 @@ export default async function handler(req, res) {
     }
 
     // 2. Initialize Microsoft Graph Client
+    if (!process.env.AZURE_TENANT_ID || !process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
+      throw new Error("Missing Azure AD credentials");
+    }
+
     const credential = new ClientSecretCredential(
       process.env.AZURE_TENANT_ID,
       process.env.AZURE_CLIENT_ID,
@@ -91,7 +113,8 @@ export default async function handler(req, res) {
     console.error('Error fetching files:', error);
     res.status(500).json({
       error: 'Failed to fetch files',
-      details: error instanceof Error ? error.message : String(error)
+      details: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }

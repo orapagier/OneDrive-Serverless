@@ -1,21 +1,8 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-import { Client } from '@microsoft/microsoft-graph-client';
-import { ClientSecretCredential } from '@azure/identity';
-
-// Type definitions
-interface DriveItem {
-  id: string;
-  name: string;
-  '@microsoft.graph.downloadUrl'?: string;
-  lastModifiedDateTime: string;
-  size: number;
-}
-
-interface CachedFiles {
-  files: DriveItem[];
-  expiry: number;
-}
+// Converted to CommonJS require syntax
+const { initializeApp } = require('firebase/app');
+const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
+const { Client } = require('@microsoft/microsoft-graph-client');
+const { ClientSecretCredential } = require('@azure/identity');
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -37,10 +24,9 @@ try {
   db = getFirestore(app);
 } catch (firebaseError) {
   console.error("Firebase initialization failed:", firebaseError);
-  // db will remain undefined
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Early return if Firebase failed to initialize
   if (!db) {
     return res.status(500).json({
@@ -55,7 +41,7 @@ export default async function handler(req, res) {
     const cacheSnap = await getDoc(cacheRef);
     
     if (cacheSnap.exists()) {
-      const cacheData = cacheSnap.data() as CachedFiles;
+      const cacheData = cacheSnap.data();
       if (cacheData.expiry > Date.now()) {
         return res.status(200).json({
           files: cacheData.files,
@@ -89,7 +75,7 @@ export default async function handler(req, res) {
       .select('id,name,size,lastModifiedDateTime,@microsoft.graph.downloadUrl')
       .get();
 
-    const files: DriveItem[] = response.value.map((item: any) => ({
+    const files = response.value.map((item) => ({
       id: item.id,
       name: item.name,
       '@microsoft.graph.downloadUrl': item['@microsoft.graph.downloadUrl'],
@@ -101,7 +87,7 @@ export default async function handler(req, res) {
     await setDoc(cacheRef, {
       files,
       expiry: Date.now() + 3600000 // 1 hour
-    } as CachedFiles);
+    });
 
     // 5. Return files to frontend
     res.status(200).json({
@@ -117,4 +103,4 @@ export default async function handler(req, res) {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
-}
+};
